@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>직역극장 연습실</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
@@ -44,6 +48,16 @@ h1 small { display: block; font-family: var(--body); font-weight: 500; font-size
 @media (max-width: 759px) { .scene img { aspect-ratio: 4 / 3.4; max-height: none } }
 .scene .ep { position: absolute; left: 12px; top: 12px; background: var(--red); color: #fff; font: 700 13px var(--body); padding: 3px 10px; border-radius: 8px }
 .scene a.watch { position: absolute; right: 12px; bottom: 12px; background: rgba(0,0,0,.72); color: #fff; text-decoration: none; font: 700 13px var(--body); padding: 6px 12px; border-radius: 999px }
+.scene .play { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 0; padding: 0; cursor: pointer; color: #fff; font: 900 18px var(--body); background: linear-gradient(rgba(0,0,0,0) 35%, rgba(0,0,0,.6)); text-shadow: 0 2px 6px rgba(0,0,0,.6) }
+.scene .play i { width: 84px; height: 84px; border-radius: 50%; background: var(--red); display: grid; place-items: center; box-shadow: 0 6px 22px rgba(0,0,0,.45); transition: transform .15s }
+.scene .play i::after { content: ''; border-left: 28px solid #fff; border-top: 17px solid transparent; border-bottom: 17px solid transparent; margin-left: 7px }
+.scene .play:hover i { transform: scale(1.08) }
+.scene .play small { font: 600 13px var(--body); opacity: .9 }
+.scene .play:focus-visible { outline: 3px solid var(--blue); outline-offset: -3px }
+.scene iframe { display: block; width: 100%; aspect-ratio: 9 / 16; border: 0; background: #000 }
+@media (max-width: 759px) { .scene iframe { width: min(100%, calc(78vh * 9 / 16)); margin: 0 auto } }
+.scene.on img, .scene.on .play, .scene.on .ep { display: none }
+.scene.on a.watch { position: static; display: block; text-align: center; border-radius: 0; padding: 8px }
 .info { padding: 22px 22px 24px; display: flex; flex-direction: column; gap: 14px; min-width: 0 }
 .phrase { font-family: var(--display); font-size: clamp(34px, 8vw, 52px); line-height: 1.1; margin: 0; text-wrap: balance }
 .rom { color: var(--soft); font-size: 15px; letter-spacing: .03em; margin-top: -6px }
@@ -119,10 +133,11 @@ footer a.sub { background: var(--red); color: #fff; text-decoration: none; font:
   <nav class="strip" id="strip" aria-label="표현 고르기"></nav>
 
   <article class="card">
-    <div class="scene">
+    <div class="scene" id="scene">
       <img id="img" alt="">
+      <button class="play" id="play" type="button"><i aria-hidden="true"></i>여기서 영상 보기<small>Watch the short here</small></button>
       <span class="ep" id="ep"></span>
-      <a class="watch" id="watch" href="#" target="_blank" rel="noopener">영상 보기 · Watch</a>
+      <a class="watch" id="watch" href="#" target="_blank" rel="noopener">유튜브에서 보기 · YouTube</a>
     </div>
     <div class="info">
       <p class="phrase" id="phrase"></p>
@@ -201,11 +216,23 @@ function strip() {
     $('strip').appendChild(b);
   });
 }
+
+function stopVid() {
+  const s = $('scene'), f = s.querySelector('iframe'); if (f) f.remove(); s.classList.remove('on');
+}
+function playVid() {
+  const p = P[cur], s = $('scene'); stopVid();
+  const f = document.createElement('iframe');
+  f.src = 'https://www.youtube.com/embed/' + p.vid + '?autoplay=1&playsinline=1&rel=0';
+  f.title = p.ko + ' 영상'; f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen = true;
+  s.insertBefore(f, s.firstChild); s.classList.add('on');
+}
 function render() {
   const p = P[cur];
   $('img').src = p.img; $('img').alt = p.ko + ' 장면';
   $('ep').textContent = `${p.ep}화 · Episode ${p.ep}`;
   $('watch').href = 'https://youtube.com/shorts/' + p.vid;
+  stopVid();
   $('phrase').textContent = p.ko; $('rom').textContent = p.rom;
   $('lit').textContent = '"' + p.lit + '"';
   $('mko').textContent = p.mko; $('men').textContent = p.men; $('en').textContent = p.en;
@@ -381,7 +408,9 @@ function quiz() {
       const ex = $('qexp'); ex.hidden = false; ex.innerHTML = '';
       const h = document.createElement('b'); h.textContent = (ok ? '정답! · Correct! ' : '아쉬워요 · Not quite. ') + `"${q.ko}" = ${q.en}`; ex.appendChild(h);
       const m = document.createElement('div'); m.textContent = q.mko + ' · ' + q.men; ex.appendChild(m);
-      const a = document.createElement('a'); a.href = 'https://youtube.com/shorts/' + q.vid; a.target = '_blank'; a.rel = 'noopener'; a.textContent = `${q.ep}화 영상으로 보기 · Watch episode ${q.ep}`; ex.appendChild(a);
+      const a = document.createElement('a'); a.href = 'https://youtube.com/shorts/' + q.vid; a.textContent = `▶ ${q.ep}화 영상 바로 보기 · Watch episode ${q.ep}`;
+      a.onclick = e => { e.preventDefault(); const i = P.indexOf(q); if (i >= 0) { cur = i; render(); playVid(); document.getElementById('scene').scrollIntoView({ behavior: 'smooth', block: 'start' }); } };
+      ex.appendChild(a);
       $('qscore').textContent = `${qStep + 1} / ${QN} 문제 · 맞힌 문제 ${qRight}`;
       $('qnext').hidden = false; $('qnext').textContent = qStep + 1 < QN ? '다음 문제 · Next' : '결과 보기 · See result';
     };
@@ -400,5 +429,6 @@ function quizEnd() {
 $('qnext').onclick = () => { qStep++; qStep < QN ? quiz() : quizEnd(); };
 $('qrestart').onclick = quizStart;
 
+$("play").onclick = playVid;
 render();
 </script>
